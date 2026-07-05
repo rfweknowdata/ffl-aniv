@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<title>Postal de Aniversário — Fraternidade Fiat Lux</title>
+<style>
+  /* ---- Print / page setup: exact A4, no margins ---- */
+  @page { size: A4; margin: 0; }
+  html, body { margin: 0; padding: 0; }
+  * { box-sizing: border-box; }
+
+  /* Screen preview backdrop (ignored when printing) */
+  body { background: #d9d5cf; }
+  @media print { body { background: #fff; } }
+
+  .postal {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+    margin: 0 auto;
+    background: #ffffff;
+    overflow: hidden;
+    font-family: "Times New Roman", Times, "Liberation Serif", serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Floral background — logo, org name & "Feliz Aniversário" are baked in */
+  .postal__bg {
+    position: absolute; top: 0; left: 0;
+    width: 210mm; height: auto;
+    user-select: none; pointer-events: none;
+  }
+
+  /* Names block (left-indented, matches original) */
+  .postal__names { position: absolute; left: 29.5%; top: 15.2%; width: 64%; }
+  .postal__label { font-style: italic; color: #cc9900; font-size: 21.5pt; line-height: 1.15; }
+  .postal__value { color: #9cc2e5; font-size: 16.5pt; line-height: 1.25; letter-spacing: .3px;
+                   min-height: 20pt; margin: 1.5pt 0 10pt; }
+
+  /* Blessing (centered) */
+  .postal__blessing { position: absolute; left: 8%; top: 30.5%; width: 84%;
+                      text-align: center; font-style: italic; color: #cc9900;
+                      font-size: 21.5pt; line-height: 1.42; }
+
+  /* Date + Namastê (lower-right) */
+  .postal__signoff { position: absolute; right: 8.5%; top: 42.5%;
+                     text-align: right; color: #cc9900; font-size: 14pt; line-height: 1.9; }
+</style>
+</head>
+<body>
+  <!-- =========================================================
+       AUTOMATION TOKENS — find & replace these three strings:
+         {{nome_profano}}   full profane name (uppercase in source data)
+         {{nome_mistico}}   mystic name (leave the token empty "" if none)
+         {{data}}           formatted date, e.g. "18 de Junho de 2026"
+       Everything else is fixed.
+       ========================================================= -->
+  <div class="postal">
+    <img class="postal__bg" src="../assets/fundo-postal-aniv.png" alt="">
+
+    <div class="postal__names">
+      <div class="postal__label">Nome Profano</div>
+      <div class="postal__value">{{nome_profano}}</div>
+      <div class="postal__label">Nome Místico</div>
+      <div class="postal__value">{{nome_mistico}}</div>
+    </div>
+
+    <div class="postal__blessing">
+      &ldquo;Eu Doménico de Roma, rogo a Deus<br>
+      que seja este, mais um ano evolutivo em todos os<br>
+      quadrantes da sua vida&rdquo;
+    </div>
+
+    <div class="postal__signoff">
+      <div>{{data}}</div>
+      <div>Namastê</div>
+    </div>
+  </div>
+</body>
+</html>

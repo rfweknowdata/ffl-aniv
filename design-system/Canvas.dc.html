@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; }
+  * { box-sizing:border-box; }
+  ::selection { background:#e9d9a6; }
+  .fx-scroll::-webkit-scrollbar { width:10px; height:10px; }
+  .fx-scroll::-webkit-scrollbar-thumb { background:#d8d0c2; border-radius:8px; border:2px solid transparent; background-clip:padding-box; }
+  .fx-row:hover { background:#faf7f0 !important; }
+  .fx-nav:hover { background:rgba(198,154,46,.12) !important; color:#9a7a1e !important; }
+  .fx-ico:hover { background:#f1ece1 !important; }
+  input:focus, textarea:focus { outline:none; border-color:#c69a2e !important; box-shadow:0 0 0 3px rgba(198,154,46,.16) !important; }
+</style>
+</helmet>
+<div style="display:flex;width:100%;height:100vh;min-height:600px;background:#f6f3ee;color:#2a2621;font-family:'Instrument Sans',system-ui,sans-serif;font-size:14px;position:relative;">
+
+  <!-- ============ DRAWER OVERLAY (mobile) ============ -->
+  <div onClick="{{ closeNav }}" style="{{ overlayStyle }}"></div>
+
+  <!-- ============ SIDEBAR / DRAWER ============ -->
+  <aside style="{{ asideStyle }}">
+    <div style="padding:4px 10px 22px;border-bottom:1px solid #ece5d8;margin-bottom:18px;display:flex;align-items:flex-start;">
+      <div>
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:26px;color:#a67c00;line-height:1;">Fiat Lux</div>
+        <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#8a8175;margin-top:8px;">Backoffice · Postais</div>
+      </div>
+      <button onClick="{{ closeNav }}" style="{{ drawerCloseStyle }}" title="Fechar menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <nav style="display:flex;flex-direction:column;gap:4px;">
+      <button class="fx-nav" onClick="{{ goMembers }}" style="{{ navMembersStyle }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Sócios</span>
+        <span style="margin-left:auto;font-size:12px;opacity:.7;">{{ totalCount }}</span>
+      </button>
+      <button class="fx-nav" onClick="{{ goSchedule }}" style="{{ navSchedStyle }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span>Agendamentos</span>
+        <span style="margin-left:auto;font-size:12px;opacity:.7;">{{ schedCount }}</span>
+      </button>
+    </nav>
+
+    <div style="margin-top:auto;padding:14px 12px;border-radius:10px;background:#faf5ea;border:1px solid #f0e6cf;font-size:12px;line-height:1.5;color:#8a8175;">
+      Envio automático por <span style="color:#9a7a1e;">e-mail</span>. Sócios só com telemóvel são enviados à mão por <span style="color:#1f7a52;">WhatsApp</span> — descarregue o PDF.
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;">
+
+    <!-- ---- MOBILE TOP BAR ---- -->
+    <sc-if value="{{ showTopbar }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:none;display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fffefb;border-bottom:1px solid #ece5d8;position:sticky;top:0;z-index:30;">
+      <button onClick="{{ openNav }}" title="Menu" style="width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid #e7e1d7;border-radius:10px;background:#fff;color:#6a6459;cursor:pointer;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:21px;color:#a67c00;line-height:1;">{{ topbarTitle }}</div>
+      <sc-if value="{{ isMembers }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ onAdd }}" title="Adicionar sócio" style="margin-left:auto;width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;border:none;border-radius:10px;background:#c69a2e;color:#fff;cursor:pointer;box-shadow:0 1px 2px rgba(166,124,0,.25);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ---- PAGE: SÓCIOS ---- -->
+    <sc-if value="{{ isMembers }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
+      <header style="{{ headerStyle }}">
+        <div>
+          <h1 style="margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:{{ h1Size }};font-weight:400;color:#2a2621;">Sócios</h1>
+          <p style="margin:6px 0 0;color:#8a8175;font-size:13.5px;">{{ countLabel }}</p>
+        </div>
+        <div style="{{ headerActionsStyle }}">
+          <div style="position:relative;display:flex;align-items:center;{{ searchWrapGrow }}">
+            <svg style="position:absolute;left:12px;pointer-events:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a89f90" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Procurar nome, NIF, e-mail…" style="{{ searchInputStyle }}">
+          </div>
+          <button onClick="{{ onAdd }}" style="{{ addBtnStyle }}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            Adicionar sócio
+          </button>
+        </div>
+      </header>
+
+      <!-- DESKTOP: table -->
+      <sc-if value="{{ showTable }}" hint-placeholder-val="{{ false }}">
+      <div class="fx-scroll" style="flex:1;overflow:auto;padding:0 34px 40px;">
+        <table style="width:100%;border-collapse:collapse;min-width:940px;">
+          <thead>
+            <tr style="text-align:left;color:#8a8175;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;">
+              <th style="padding:16px 12px 12px;font-weight:600;">Nome Profano</th>
+              <th style="padding:16px 12px 12px;font-weight:600;">Nome Místico</th>
+              <th style="padding:16px 12px 12px;font-weight:600;">Nascimento</th>
+              <th style="padding:16px 12px 12px;font-weight:600;">NIF</th>
+              <th style="padding:16px 12px 12px;font-weight:600;">Telemóvel</th>
+              <th style="padding:16px 12px 12px;font-weight:600;">E-mail</th>
+              <th style="padding:16px 12px 12px;font-weight:600;">Canal</th>
+              <th style="padding:16px 12px 12px;font-weight:600;text-align:right;">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ rows }}" as="m" hint-placeholder-count="6">
+              <tr class="fx-row" style="border-top:1px solid #eee6d9;transition:background .12s;">
+                <td style="padding:13px 12px;">
+                  <div style="font-weight:600;color:#2a2621;">{{ m.profaneName }}</div>
+                  <div style="font-size:11.5px;color:#b0a794;font-family:ui-monospace,monospace;margin-top:2px;">{{ m.internalId }}</div>
+                </td>
+                <td style="padding:13px 12px;font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:16px;color:{{ m.mysticColor }};">{{ m.mysticDisplay }}</td>
+                <td style="padding:13px 12px;color:#4a463f;white-space:nowrap;">{{ m.birthDisplay }}</td>
+                <td style="padding:13px 12px;color:#6a6459;font-family:ui-monospace,monospace;font-size:12.5px;">{{ m.nifDisplay }}</td>
+                <td style="padding:13px 12px;color:#4a463f;white-space:nowrap;">{{ m.phoneDisplay }}</td>
+                <td style="padding:13px 12px;color:#4a463f;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.emailDisplay }}</td>
+                <td style="padding:13px 12px;"><span style="{{ m.channelStyle }}">{{ m.channelLabel }}</span></td>
+                <td style="padding:13px 12px;">
+                  <div style="display:flex;gap:4px;justify-content:flex-end;">
+                    <button class="fx-ico" onClick="{{ m.onDownload }}" title="Descarregar PDF do postal" style="{{ m.dlStyle }}">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                    </button>
+                    <button class="fx-ico" onClick="{{ m.onEdit }}" title="Editar" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid #e7e1d7;border-radius:8px;background:#fff;color:#6a6459;cursor:pointer;transition:background .12s;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    </button>
+                    <button class="fx-ico" onClick="{{ m.onDelete }}" title="Eliminar" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid #e7e1d7;border-radius:8px;background:#fff;color:#b4463c;cursor:pointer;transition:background .12s;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:60px;text-align:center;color:#a89f90;">Nenhum sócio corresponde à procura.</div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- MOBILE: cards -->
+      <sc-if value="{{ showCards }}" hint-placeholder-val="{{ false }}">
+      <div class="fx-scroll" style="flex:1;overflow:auto;padding:14px 14px 40px;display:flex;flex-direction:column;gap:12px;">
+        <sc-for list="{{ rows }}" as="m" hint-placeholder-count="5">
+          <div style="background:#fff;border:1px solid #ebe4d7;border-radius:14px;padding:15px 16px;box-shadow:0 1px 2px rgba(90,75,30,.05);">
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+              <div style="min-width:0;flex:1;">
+                <div style="font-weight:700;color:#2a2621;font-size:15px;line-height:1.25;">{{ m.profaneName }}</div>
+                <div style="font-size:11.5px;color:#b0a794;font-family:ui-monospace,monospace;margin-top:3px;">{{ m.internalId }}</div>
+              </div>
+              <span style="{{ m.channelStyle }}">{{ m.channelLabel }}</span>
+            </div>
+            <sc-if value="{{ m.hasMystic }}" hint-placeholder-val="{{ false }}">
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:18px;color:#9a7a1e;margin-top:6px;">{{ m.mysticDisplay }}</div>
+            </sc-if>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-top:12px;padding-top:12px;border-top:1px solid #f2ece0;">
+              <div><div style="font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#a89f90;">Nascimento</div><div style="color:#4a463f;margin-top:2px;">{{ m.birthDisplay }}</div></div>
+              <div><div style="font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#a89f90;">NIF</div><div style="color:#4a463f;margin-top:2px;font-family:ui-monospace,monospace;font-size:12.5px;">{{ m.nifDisplay }}</div></div>
+              <div><div style="font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#a89f90;">Telemóvel</div><div style="color:#4a463f;margin-top:2px;">{{ m.phoneDisplay }}</div></div>
+              <div style="min-width:0;"><div style="font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#a89f90;">E-mail</div><div style="color:#4a463f;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.emailDisplay }}</div></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <button onClick="{{ m.onDownload }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:42px;border:1px solid #cfe6d8;border-radius:10px;background:#f0f8f3;color:#1f7a52;font:inherit;font-weight:600;font-size:13px;cursor:pointer;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                PDF
+              </button>
+              <button onClick="{{ m.onEdit }}" title="Editar" style="width:48px;height:42px;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid #e7e1d7;border-radius:10px;background:#fff;color:#6a6459;cursor:pointer;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </button>
+              <button onClick="{{ m.onDelete }}" title="Eliminar" style="width:48px;height:42px;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid #f0d9d5;border-radius:10px;background:#fdf5f4;color:#b4463c;cursor:pointer;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+              </button>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:50px 20px;text-align:center;color:#a89f90;">Nenhum sócio corresponde à procura.</div>
+        </sc-if>
+      </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ---- PAGE: AGENDAMENTOS ---- -->
+    <sc-if value="{{ isSchedule }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
+      <header style="{{ schedHeaderStyle }}">
+        <h1 style="margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:{{ h1Size }};font-weight:400;">Agendamentos</h1>
+        <p style="margin:6px 0 0;color:#8a8175;font-size:13.5px;">Aniversários de {{ currentYear }} — envios por e-mail são automáticos; WhatsApp é manual.</p>
+      </header>
+      <div class="fx-scroll" style="{{ schedBodyStyle }}">
+        <sc-for list="{{ schedGroups }}" as="g" hint-placeholder-count="3">
+          <section style="margin-bottom:26px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+              <h2 style="margin:0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:{{ g.color }};font-weight:700;">{{ g.label }}</h2>
+              <span style="font-size:12px;color:#a89f90;">{{ g.count }}</span>
+              <div style="flex:1;height:1px;background:#e7e1d7;"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ g.items }}" as="s" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:12px 14px;padding:14px 16px;background:#fff;border:1px solid #ebe4d7;border-left:3px solid {{ s.accent }};border-radius:12px;">
+                  <div style="width:48px;text-align:center;flex:none;">
+                    <div style="font-family:'Instrument Serif',Georgia,serif;font-size:23px;line-height:1;color:#2a2621;">{{ s.day }}</div>
+                    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#a89f90;margin-top:3px;">{{ s.mon }}</div>
+                  </div>
+                  <div style="min-width:140px;flex:1;">
+                    <div style="font-weight:600;color:#2a2621;">{{ s.profaneName }}</div>
+                    <div style="font-size:12.5px;color:#8a8175;margin-top:2px;overflow:hidden;text-overflow:ellipsis;">{{ s.sub }}</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="{{ s.channelStyle }}">{{ s.channelLabel }}</span>
+                    <span style="{{ s.statusStyle }}">{{ s.statusLabel }}</span>
+                    <sc-if value="{{ s.isWhatsapp }}" hint-placeholder-val="{{ false }}">
+                      <button class="fx-ico" onClick="{{ s.onDownload }}" style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid #cfe6d8;border-radius:9px;background:#f0f8f3;color:#1f7a52;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                        PDF
+                      </button>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+  </main>
+
+  <!-- ============ MODAL: ADD / EDIT ============ -->
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ onCancel }}" style="{{ modalOuterStyle }}">
+    <div onClick="{{ stop }}" style="width:560px;max-width:100%;background:#fffefb;border-radius:16px;box-shadow:0 24px 70px rgba(70,55,20,.28);overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid #ece5d8;display:flex;align-items:center;">
+        <h2 style="margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:22px;font-weight:400;">{{ modalTitle }}</h2>
+        <button onClick="{{ onCancel }}" class="fx-ico" style="margin-left:auto;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:1px solid #e7e1d7;border-radius:9px;background:#fff;color:#6a6459;cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="fx-scroll" style="{{ modalGridStyle }}">
+        <label style="display:flex;flex-direction:column;gap:6px;">
+          <span style="font-size:12.5px;font-weight:600;color:#6a6459;">ID Interno</span>
+          <input value="{{ f.internalId }}" onChange="{{ h.internalId }}" placeholder="FFL-000" style="padding:11px 12px;border:1px solid #ded7ca;border-radius:9px;font:inherit;font-family:ui-monospace,monospace;font-size:13px;background:#fff;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;">
+          <span style="font-size:12.5px;font-weight:600;color:#6a6459;">Data de Nascimento</span>
+          <input type="date" value="{{ f.birthDate }}" onChange="{{ h.birthDate }}" style="padding:11px 12px;border:1px solid #ded7ca;border-radius:9px;font:inherit;font-size:13.5px;background:#fff;color:#2a2621;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;grid-column:1 / -1;">
+          <span style="font-size:12.5px;font-weight:600;color:#6a6459;">Nome Profano <span style="color:#b4463c;">*</span></span>
+          <input value="{{ f.profaneName }}" onChange="{{ h.profaneName }}" placeholder="Nome completo" style="padding:11px 12px;border:1px solid #ded7ca;border-radius:9px;font:inherit;font-size:13.5px;background:#fff;text-transform:uppercase;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;">
+          <span style="font-size:12.5px;font-weight:600;color:#6a6459;">Nome Místico</span>
+          <input value="{{ f.mysticName }}" onChange="{{ h.mysticName }}" placeholder="(opcional)" style="padding:11px 12px;border:1px solid #ded7ca;border-radius:9px;font:inherit;font-size:13.5px;background:#fff;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;">
+          <span style="font-size:12.5px;font-weight:600;color:#6a6459;">NIF</span>
+          <input value="{{ f.nif }}" onChange="{{ h.nif }}" placeholder="000000000" style="padding:11px 12px;border:1px solid #ded7ca;border-radius:9px;font:inherit;font-family:ui-monospace,monospace;font-size:13px;background:#fff;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;">
+          <span style="font-size:12.5px;font-weight:600;color:#6a6459;">Telemóvel</span>
+          <input value="{{ f.phoneNumber }}" onChange="{{ h.phoneNumber }}" placeholder="+351 900 000 000" style="padding:11px 12px;border:1px solid #ded7ca;border-radius:9px;font:inherit;font-size:13.5px;background:#fff;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;">
+          <span style="font-size:12.5px;font-weight:600;color:#6a6459;">E-mail</span>
+          <input value="{{ f.email }}" onChange="{{ h.email }}" placeholder="nome@exemplo.pt" style="padding:11px 12px;border:1px solid #ded7ca;border-radius:9px;font:inherit;font-size:13.5px;background:#fff;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;grid-column:1 / -1;">
+          <span style="font-size:12.5px;font-weight:600;color:#6a6459;">Observações</span>
+          <textarea value="{{ f.notes }}" onChange="{{ h.notes }}" rows="3" placeholder="Notas internas…" style="padding:11px 12px;border:1px solid #ded7ca;border-radius:9px;font:inherit;font-size:13.5px;background:#fff;resize:vertical;"></textarea>
+        </label>
+        <div style="grid-column:1 / -1;padding:10px 14px;border-radius:9px;background:#f4f0e7;font-size:12.5px;color:#7a7265;display:flex;align-items:center;gap:8px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:{{ channelDotColor }};flex:none;"></span>
+          Canal de envio: <strong style="color:#2a2621;">{{ channelPreview }}</strong>
+        </div>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #ece5d8;display:flex;justify-content:flex-end;gap:10px;background:#faf7f0;">
+        <button onClick="{{ onCancel }}" style="padding:12px 18px;border:1px solid #ded7ca;border-radius:10px;background:#fff;color:#4a463f;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;">Cancelar</button>
+        <button onClick="{{ onSave }}" style="{{ saveStyle }}">Guardar</button>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ CONFIRM DELETE ============ -->
+  <sc-if value="{{ confirmOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ onCancelDelete }}" style="position:fixed;inset:0;background:rgba(70,55,20,.34);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:130;">
+    <div onClick="{{ stop }}" style="width:400px;max-width:100%;background:#fffefb;border-radius:16px;box-shadow:0 24px 70px rgba(70,55,20,.28);padding:24px 26px;">
+      <h2 style="margin:0 0 8px;font-family:'Instrument Serif',Georgia,serif;font-size:22px;font-weight:400;">Eliminar sócio?</h2>
+      <p style="margin:0 0 22px;color:#6a6459;line-height:1.5;font-size:13.5px;">Vai eliminar <strong style="color:#2a2621;">{{ pendingName }}</strong>. Esta ação não pode ser anulada.</p>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button onClick="{{ onCancelDelete }}" style="padding:12px 18px;border:1px solid #ded7ca;border-radius:10px;background:#fff;color:#4a463f;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;">Cancelar</button>
+        <button onClick="{{ onConfirmDelete }}" style="padding:12px 18px;border:none;border-radius:10px;background:#b4463c;color:#fff;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;">Eliminar</button>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ TOAST ============ -->
+  <sc-if value="{{ toastVisible }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);max-width:90vw;background:#fffefb;color:#6a5a20;padding:12px 20px;border-radius:10px;border:1px solid #ece0c2;box-shadow:0 12px 34px rgba(120,100,40,.18);font-size:13.5px;font-weight:500;z-index:140;display:flex;align-items:center;gap:9px;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f7a52" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+    {{ toast }}
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    this.MESES_ABBR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    this.state = {
+      page: 'members',
+      query: '',
+      navOpen: false,
+      isMobile: (typeof window !== 'undefined' && window.innerWidth < 760),
+      modalOpen: false,
+      editingId: null,
+      pendingDelete: null,
+      toast: '',
+      form: this.blank(),
+      members: [
+        { internalId:'FFL-001', profaneName:'ISABEL MARIA ANDRADE SILVEIRINHA SILVA', mysticName:'THARYH', birthDate:'1968-06-18', nif:'218456093', phoneNumber:'+351 916 204 118', email:'isabel.silveirinha@gmail.com', notes:'Fundadora do círculo de Lisboa.' },
+        { internalId:'FFL-002', profaneName:'ANTÓNIO JOSÉ MARQUES', mysticName:'AMON', birthDate:'1975-07-05', nif:'201338745', phoneNumber:'+351 934 771 220', email:'a.marques@sapo.pt', notes:'' },
+        { internalId:'FFL-003', profaneName:'MARIA DE FÁTIMA FERNANDES', mysticName:'', birthDate:'1982-07-05', nif:'234901556', phoneNumber:'+351 962 118 907', email:'', notes:'Prefere contacto por WhatsApp.' },
+        { internalId:'FFL-004', profaneName:'JOÃO PEDRO PEREIRA', mysticName:'KETHER', birthDate:'1990-07-12', nif:'245667019', phoneNumber:'+351 911 550 342', email:'jp.pereira@outlook.pt', notes:'' },
+        { internalId:'FFL-005', profaneName:'ROSA MARIA ANTUNES', mysticName:'', birthDate:'1959-08-03', nif:'129844730', phoneNumber:'+351 926 004 815', email:'', notes:'Sem e-mail — enviar por WhatsApp.' },
+        { internalId:'FFL-006', profaneName:'CARLOS ALBERTO MENDONÇA', mysticName:'RAV', birthDate:'1971-09-21', nif:'256710488', phoneNumber:'+351 917 330 006', email:'carlos.mendonca@gmail.com', notes:'' },
+        { internalId:'FFL-007', profaneName:'TERESA CRISTINA LOPES', mysticName:'', birthDate:'1988-03-11', nif:'233889014', phoneNumber:'+351 968 224 517', email:'teresa.lopes@hotmail.com', notes:'' },
+        { internalId:'FFL-008', profaneName:'FERNANDO MANUEL DIAS', mysticName:'ELOHIM', birthDate:'1965-12-30', nif:'118220954', phoneNumber:'+351 939 887 141', email:'', notes:'Enviar postal impresso também.' },
+        { internalId:'FFL-009', profaneName:'BEATRIZ NUNES CARVALHO', mysticName:'', birthDate:'1995-07-06', nif:'271004336', phoneNumber:'+351 913 662 700', email:'beatriz.carvalho@gmail.com', notes:'' },
+      ],
+    };
+  }
+
+  componentDidMount() {
+    this._onResize = () => {
+      const m = window.innerWidth < 760;
+      if (m !== this.state.isMobile) this.setState({ isMobile: m, navOpen: false });
+    };
+    window.addEventListener('resize', this._onResize);
+  }
+  componentWillUnmount() {
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
+    clearTimeout(this._t);
+  }
+
+  blank() { return { internalId:'', profaneName:'', mysticName:'', birthDate:'', nif:'', phoneNumber:'', email:'', notes:'' }; }
+
+  channelOf(m) {
+    if (m.email && m.email.trim()) return 'email';
+    if (m.phoneNumber && m.phoneNumber.trim()) return 'whatsapp';
+    return 'none';
+  }
+
+  parseDate(iso) {
+    if (!iso) return null;
+    const [y,mo,d] = iso.split('-').map(Number);
+    if (!y || !mo || !d) return null;
+    return { y, mo, d };
+  }
+
+  birthDisplay(iso) {
+    const p = this.parseDate(iso);
+    if (!p) return '—';
+    return String(p.d).padStart(2,'0') + '/' + String(p.mo).padStart(2,'0') + '/' + p.y;
+  }
+
+  showToast(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: '' }), 2600);
+  }
+
+  downloadPostcard(m) {
+    const now = new Date();
+    const p = this.parseDate(m.birthDate);
+    const day = p ? p.d : now.getDate();
+    const month = this.MESES[(p ? p.mo : now.getMonth()+1) - 1];
+    const year = now.getFullYear();
+    const dateStr = day + ' de ' + month + ' de ' + year;
+    const bg = new URL('assets/fundo-postal-aniv.png', location.href).href;
+    const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const S = String.fromCharCode(60) + 'script' + String.fromCharCode(62);
+    const ES = String.fromCharCode(60) + '/script' + String.fromCharCode(62);
+    const html =
+'<!DOCTYPE html><html lang="pt-PT"><head><meta charset="UTF-8">' +
+'<title>Postal ' + esc(m.profaneName) + '</title><style>' +
+'@page{size:A4;margin:0}html,body{margin:0;padding:0}*{box-sizing:border-box}' +
+'.postal{position:relative;width:210mm;height:297mm;background:#fff;overflow:hidden;font-family:"Times New Roman",Times,"Liberation Serif",serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+'.bg{position:absolute;top:0;left:0;width:210mm;height:auto}' +
+'.names{position:absolute;left:29.5%;top:15.2%;width:64%}' +
+'.label{font-style:italic;color:#cc9900;font-size:21.5pt;line-height:1.15}' +
+'.value{color:#9cc2e5;font-size:16.5pt;line-height:1.25;letter-spacing:.3px;min-height:20pt;margin:1.5pt 0 10pt}' +
+'.blessing{position:absolute;left:8%;top:30.5%;width:84%;text-align:center;font-style:italic;color:#cc9900;font-size:21.5pt;line-height:1.42}' +
+'.signoff{position:absolute;right:8.5%;top:42.5%;text-align:right;color:#cc9900;font-size:14pt;line-height:1.9}' +
+'</style></head><body><div class="postal">' +
+'<img class="bg" src="' + bg + '" alt="">' +
+'<div class="names">' +
+'<div class="label">Nome Profano</div><div class="value">' + esc(m.profaneName) + '</div>' +
+'<div class="label">Nome Místico</div><div class="value">' + esc(m.mysticName) + '</div></div>' +
+'<div class="blessing">&ldquo;Eu Doménico de Roma, rogo a Deus<br>que seja este, mais um ano evolutivo em todos os<br>quadrantes da sua vida&rdquo;</div>' +
+'<div class="signoff"><div>' + esc(dateStr) + '</div><div>Namastê</div></div>' +
+'</div>' + S + 'window.addEventListener("load",function(){setTimeout(function(){window.print()},400)})' + ES +
+'</body></html>';
+    const w = window.open('', '_blank');
+    if (!w) { this.showToast('Permita pop-ups para gerar o PDF.'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    this.showToast('PDF de ' + m.profaneName.split(' ')[0] + ' pronto para guardar.');
+  }
+
+  renderVals() {
+    const st = this.state;
+    const mob = st.isMobile;
+    const now = new Date();
+    const year = now.getFullYear();
+    const todayKey = (now.getMonth()+1) * 100 + now.getDate();
+
+    const channelStyleFor = (kind) => {
+      if (kind === 'email') return 'display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;background:#eaf1f8;color:#3f6b96;white-space:nowrap;';
+      if (kind === 'whatsapp') return 'display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;background:#e7f4ec;color:#1f7a52;white-space:nowrap;';
+      return 'display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;background:#f2ede3;color:#a89f90;white-space:nowrap;';
+    };
+    const channelLabelFor = (kind) => kind === 'email' ? 'E-mail · auto' : kind === 'whatsapp' ? 'WhatsApp' : 'Sem contacto';
+
+    const q = st.query.trim().toLowerCase();
+    const filtered = st.members.filter(m => {
+      if (!q) return true;
+      return [m.profaneName, m.mysticName, m.email, m.nif, m.internalId, m.phoneNumber]
+        .some(v => (v||'').toLowerCase().includes(q));
+    });
+
+    const rows = filtered.map(m => {
+      const kind = this.channelOf(m);
+      const dlBase = 'width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;transition:background .12s;';
+      const dlStyle = kind === 'whatsapp'
+        ? dlBase + 'border:1px solid #cfe6d8;background:#f0f8f3;color:#1f7a52;'
+        : dlBase + 'border:1px solid #e7e1d7;background:#fff;color:#6a6459;';
+      return {
+        internalId: m.internalId,
+        profaneName: m.profaneName,
+        hasMystic: !!(m.mysticName && m.mysticName.trim()),
+        mysticDisplay: m.mysticName ? m.mysticName : '—',
+        mysticColor: m.mysticName ? '#9a7a1e' : '#cfc7b6',
+        birthDisplay: this.birthDisplay(m.birthDate),
+        nifDisplay: m.nif || '—',
+        phoneDisplay: m.phoneNumber || '—',
+        emailDisplay: m.email || '—',
+        channelLabel: channelLabelFor(kind),
+        channelStyle: channelStyleFor(kind),
+        dlStyle,
+        onEdit: () => this.setState({ modalOpen:true, editingId:m.internalId, form:{...this.blank(), ...m} }),
+        onDelete: () => this.setState({ pendingDelete:m }),
+        onDownload: () => this.downloadPostcard(m),
+      };
+    });
+
+    const withDate = st.members.filter(m => this.parseDate(m.birthDate));
+    const enriched = withDate.map(m => {
+      const p = this.parseDate(m.birthDate);
+      return { m, p, key: p.mo * 100 + p.d, kind: this.channelOf(m) };
+    }).sort((a,b) => a.key - b.key);
+
+    const badge = (bg,c) => 'display:inline-block;padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:600;background:' + bg + ';color:' + c + ';white-space:nowrap;';
+    const mkItem = (e, statusLabel, statusStyle, accent) => ({
+      day: String(e.p.d).padStart(2,'0'),
+      mon: this.MESES_ABBR[e.p.mo - 1],
+      profaneName: e.m.profaneName,
+      sub: (e.m.mysticName ? e.m.mysticName + ' · ' : '') + (e.kind === 'email' ? e.m.email : (e.m.phoneNumber || '—')),
+      channelLabel: channelLabelFor(e.kind),
+      channelStyle: channelStyleFor(e.kind),
+      statusLabel, statusStyle, accent,
+      isWhatsapp: e.kind === 'whatsapp',
+      onDownload: () => this.downloadPostcard(e.m),
+    });
+
+    const past=[], today=[], future=[];
+    enriched.forEach(e => {
+      if (e.key < todayKey) past.push(mkItem(e, 'Enviado', badge('#eef0ea','#6f7a5e'), '#c8cdbe'));
+      else if (e.key === todayKey) today.push(mkItem(e, 'Hoje', badge('#f6ecc9','#8a6d12'), '#c69a2e'));
+      else future.push(mkItem(e, 'Agendado', badge('#eaf1f8','#3f6b96'), '#a9c3dd'));
+    });
+    const schedGroups = [
+      { label:'Hoje', color:'#a67c00', items: today, count: today.length },
+      { label:'Próximos', color:'#3f6b96', items: future, count: future.length },
+      { label:'Enviados', color:'#8a8175', items: past, count: past.length },
+    ].filter(g => g.items.length > 0);
+
+    const fKind = this.channelOf(st.form);
+    const channelPreview = fKind === 'email' ? 'E-mail (automático)' : fKind === 'whatsapp' ? 'WhatsApp (manual — PDF)' : 'Sem contacto definido';
+    const channelDotColor = fKind === 'email' ? '#3f6b96' : fKind === 'whatsapp' ? '#1f7a52' : '#c9bfad';
+
+    const setField = (k) => (e) => this.setState({ form: {...this.state.form, [k]: e.target.value } });
+    const h = {};
+    ['internalId','profaneName','mysticName','birthDate','nif','phoneNumber','email','notes'].forEach(k => h[k] = setField(k));
+
+    const valid = st.form.profaneName.trim().length > 0;
+    const saveStyle = 'padding:12px 22px;border:none;border-radius:10px;font:inherit;font-weight:600;font-size:13.5px;'
+      + (valid ? 'background:#c69a2e;color:#fff;cursor:pointer;box-shadow:0 1px 2px rgba(166,124,0,.25);' : 'background:#e7ddc8;color:#fff;cursor:not-allowed;');
+
+    // ---- responsive styles ----
+    const navBase = 'display:flex;align-items:center;gap:11px;width:100%;padding:12px 12px;border:none;border-radius:9px;background:transparent;color:#8a8175;font:inherit;font-size:15px;font-weight:600;cursor:pointer;text-align:left;transition:all .12s;';
+    const navActive = 'display:flex;align-items:center;gap:11px;width:100%;padding:12px 12px;border:none;border-radius:9px;background:rgba(198,154,46,.15);color:#9a7a1e;font:inherit;font-size:15px;font-weight:600;cursor:pointer;text-align:left;box-shadow:inset 3px 0 0 #c69a2e;';
+
+    const asideDesktop = 'width:250px;flex:none;background:#fffefb;color:#8a8175;display:flex;flex-direction:column;padding:26px 18px;border-right:1px solid #ece5d8;';
+    const asideMobile = 'position:fixed;top:0;left:0;height:100%;width:270px;max-width:82vw;z-index:120;background:#fffefb;color:#8a8175;display:flex;flex-direction:column;padding:22px 16px;border-right:1px solid #ece5d8;box-shadow:0 0 44px rgba(70,55,20,.22);transition:transform .28s cubic-bezier(.4,0,.2,1);transform:translateX(' + (st.navOpen ? '0' : '-106%') + ');';
+    const overlayStyle = (mob && st.navOpen)
+      ? 'position:fixed;inset:0;background:rgba(50,42,20,.34);z-index:110;'
+      : 'display:none;';
+
+    const headerPad = mob ? '16px 16px 12px' : '26px 34px 18px';
+    const headerStyle = mob
+      ? 'padding:' + headerPad + ';display:flex;flex-direction:column;gap:14px;border-bottom:1px solid #e7e1d7;background:#fffdf9;'
+      : 'padding:' + headerPad + ';display:flex;align-items:flex-end;gap:20px;border-bottom:1px solid #e7e1d7;background:#fffdf9;';
+    const headerActionsStyle = mob
+      ? 'display:flex;flex-direction:column;gap:10px;'
+      : 'margin-left:auto;display:flex;align-items:center;gap:12px;';
+    const searchWrapGrow = mob ? 'flex:1;' : '';
+    const searchInputStyle = 'width:' + (mob ? '100%' : '260px') + ';padding:11px 12px 11px 34px;border:1px solid #ded7ca;border-radius:10px;background:#fff;font:inherit;font-size:14px;color:#2a2621;';
+    const addBtnStyle = 'display:' + (mob ? 'none' : 'flex') + ';align-items:center;justify-content:center;gap:7px;padding:11px 16px;border:none;border-radius:10px;background:#c69a2e;color:#fff;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;box-shadow:0 1px 2px rgba(166,124,0,.25);';
+
+    const schedHeaderStyle = 'padding:' + (mob ? '16px 16px 14px' : '26px 34px 18px') + ';border-bottom:1px solid #e7e1d7;background:#fffdf9;';
+    const schedBodyStyle = 'flex:1;overflow:auto;padding:' + (mob ? '18px 14px 44px' : '24px 34px 48px') + ';';
+
+    const modalOuterStyle = 'position:fixed;inset:0;background:rgba(70,55,20,.34);backdrop-filter:blur(2px);display:flex;align-items:' + (mob ? 'flex-end' : 'flex-start') + ';justify-content:center;padding:' + (mob ? '0' : '48px 20px') + ';z-index:125;overflow:auto;';
+    const modalGridStyle = 'display:grid;grid-template-columns:' + (mob ? '1fr' : '1fr 1fr') + ';gap:15px 18px;padding:20px 22px;max-height:' + (mob ? '70vh' : 'none') + ';overflow:auto;';
+
+    return {
+      isMobile: mob,
+      showTopbar: mob,
+      topbarTitle: st.page === 'members' ? 'Sócios' : 'Agendamentos',
+      overlayStyle,
+      asideStyle: mob ? asideMobile : asideDesktop,
+      drawerCloseStyle: mob
+        ? 'margin-left:auto;width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid #e7e1d7;border-radius:9px;background:#fff;color:#6a6459;cursor:pointer;'
+        : 'display:none;',
+      openNav: () => this.setState({ navOpen: true }),
+      closeNav: () => this.setState({ navOpen: false }),
+
+      isMembers: st.page === 'members',
+      isSchedule: st.page === 'schedule',
+      showTable: st.page === 'members' && !mob,
+      showCards: st.page === 'members' && mob,
+      goMembers: () => this.setState({ page:'members', navOpen:false }),
+      goSchedule: () => this.setState({ page:'schedule', navOpen:false }),
+      navMembersStyle: st.page === 'members' ? navActive : navBase,
+      navSchedStyle: st.page === 'schedule' ? navActive : navBase,
+
+      totalCount: st.members.length,
+      schedCount: enriched.length,
+      currentYear: year,
+      h1Size: mob ? '25px' : '30px',
+      countLabel: filtered.length === st.members.length
+        ? st.members.length + ' sócios ativos'
+        : filtered.length + ' de ' + st.members.length + ' sócios',
+
+      query: st.query,
+      onQuery: (e) => this.setState({ query: e.target.value }),
+      onAdd: () => this.setState({ modalOpen:true, editingId:null, navOpen:false, form:{...this.blank(), internalId: this.nextId() } }),
+
+      headerStyle, headerActionsStyle, searchWrapGrow, searchInputStyle, addBtnStyle,
+      schedHeaderStyle, schedBodyStyle,
+
+      rows,
+      isEmpty: filtered.length === 0,
+      schedGroups,
+
+      modalOpen: st.modalOpen,
+      modalTitle: st.editingId ? 'Editar sócio' : 'Novo sócio',
+      modalOuterStyle, modalGridStyle,
+      f: st.form,
+      h,
+      channelPreview,
+      channelDotColor,
+      saveStyle,
+      onSave: valid ? () => this.save() : () => {},
+      onCancel: () => this.setState({ modalOpen:false }),
+      stop: (e) => e.stopPropagation(),
+
+      confirmOpen: !!st.pendingDelete,
+      pendingName: st.pendingDelete ? st.pendingDelete.profaneName : '',
+      onConfirmDelete: () => {
+        const del = st.pendingDelete;
+        this.setState({ members: st.members.filter(x => x.internalId !== del.internalId), pendingDelete:null });
+        this.showToast('Sócio eliminado.');
+      },
+      onCancelDelete: () => this.setState({ pendingDelete:null }),
+
+      toast: st.toast,
+      toastVisible: !!st.toast,
+    };
+  }
+
+  nextId() {
+    const nums = this.state.members
+      .map(m => (m.internalId.match(/(\d+)/) || [])[1])
+      .filter(Boolean).map(Number);
+    const n = (nums.length ? Math.max(...nums) : 0) + 1;
+    return 'FFL-' + String(n).padStart(3,'0');
+  }
+
+  save() {
+    const st = this.state;
+    const form = { ...st.form, profaneName: st.form.profaneName.trim() };
+    let members;
+    if (st.editingId) {
+      members = st.members.map(m => m.internalId === st.editingId ? form : m);
+    } else {
+      const id = form.internalId.trim() || this.nextId();
+      members = [...st.members, { ...form, internalId: id }];
+    }
+    this.setState({ members, modalOpen:false, editingId:null });
+    this.showToast(st.editingId ? 'Alterações guardadas.' : 'Sócio adicionado.');
+  }
+}
+</script>
+</body>
+</html>

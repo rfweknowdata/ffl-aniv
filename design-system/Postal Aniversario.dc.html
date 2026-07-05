@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+  @font-face { font-family: "TimesFallback"; src: local("Times New Roman"), local("Times"), local("Liberation Serif"); }
+  html, body { margin: 0; padding: 0; background: #d9d5cf; }
+  * { box-sizing: border-box; }
+</style>
+</helmet>
+<div style="width:794px;height:1123px;position:relative;background:#ffffff;overflow:hidden;font-family:'Times New Roman','TimesFallback',Times,serif;box-shadow:0 8px 40px rgba(0,0,0,.18);margin:0 auto;">
+
+  <!-- Floral background (logo, org name & 'Feliz Aniversário' are baked in) -->
+  <img src="assets/fundo-postal-aniv.png" alt="" style="position:absolute;top:0;left:0;width:794px;height:auto;user-select:none;pointer-events:none;" draggable="false">
+
+  <!-- Names block -->
+  <div style="position:absolute;left:29.5%;top:15.2%;width:64%;transform-origin:left top;transform:{{ nomeScale }};">
+    <div style="font-style:italic;color:#cc9900;font-size:29px;line-height:1.15;">Nome Profano</div>
+    <div style="color:#9cc2e5;font-size:22px;line-height:1.25;letter-spacing:.3px;min-height:26px;margin:2px 0 14px;">{{ nomeProfano }}</div>
+    <div style="font-style:italic;color:#cc9900;font-size:29px;line-height:1.15;">Nome Místico</div>
+    <div style="color:#9cc2e5;font-size:22px;line-height:1.25;letter-spacing:.3px;min-height:26px;margin:2px 0 0;">{{ nomeMistico }}</div>
+  </div>
+
+  <!-- Blessing -->
+  <div style="position:absolute;left:8%;top:30.5%;width:84%;text-align:center;font-style:italic;color:#cc9900;font-size:29px;line-height:1.42;">
+    “Eu Doménico de Roma, rogo a Deus<br>que seja este, mais um ano evolutivo em todos os<br>quadrantes da sua vida”
+  </div>
+
+  <!-- Date + Namastê -->
+  <div style="position:absolute;right:8.5%;top:42.5%;text-align:right;color:#cc9900;font-size:19px;line-height:1.9;">
+    <div>{{ data }}</div>
+    <div>Namastê</div>
+  </div>
+
+  <!-- Print safe-area guide (tweak) -->
+  <div style="{{ guiaStyle }}"></div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:794,&quot;height&quot;:1123},&quot;nomeProfano&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;ISABEL MARIA ANDRADE SILVEIRINHA SILVA&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Conteúdo&quot;},&quot;nomeMistico&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;THARYH&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Conteúdo&quot;},&quot;data&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;18 de Junho de 2026&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Conteúdo&quot;},&quot;escalaNome&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;min&quot;:0.7,&quot;max&quot;:1.15,&quot;step&quot;:0.01,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Ajustes&quot;,&quot;unit&quot;:&quot;×&quot;},&quot;mostrarGuias&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Ajustes&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props || {};
+    const nomeProfano = p.nomeProfano ?? "ISABEL MARIA ANDRADE SILVEIRINHA SILVA";
+    const nomeMistico = p.nomeMistico ?? "THARYH";
+    const data = p.data ?? "18 de Junho de 2026";
+    const scale = p.escalaNome ?? 1;
+    const guias = p.mostrarGuias ?? false;
+    const guiaStyle = guias
+      ? "position:absolute;top:14mm;left:12mm;right:12mm;bottom:14mm;border:1px dashed rgba(204,153,0,.55);pointer-events:none;"
+      : "display:none;";
+    return {
+      nomeProfano,
+      nomeMistico,
+      data,
+      nomeScale: "scale(" + scale + ")",
+      guiaStyle,
+    };
+  }
+}
+</script>
+</body>
+</html>
