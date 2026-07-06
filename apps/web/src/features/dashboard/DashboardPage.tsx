@@ -49,7 +49,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: '26px 34px', overflow: 'auto', height: '100%' }}>
+    <div style={{ padding: '26px 34px' }}>
       <h1 style={{ margin: 0, fontFamily: theme.font.serif, fontWeight: 400, fontSize: 30 }}>Dashboard</h1>
       <p style={{ color: theme.color.textMuted, marginTop: 8, marginBottom: 24 }}>
         Resumo dos envios de postais de aniversário.

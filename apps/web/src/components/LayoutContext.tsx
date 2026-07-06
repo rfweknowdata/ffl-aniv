@@ -46,6 +46,8 @@ export function useLayoutChrome() {
 }
 
 /** Pages call this to set the mobile top bar's title and optional right-side action. */
+// `action` must be a referentially stable node (memoize it with useMemo at the call site) —
+// this effect's dependency array will otherwise re-fire on every render of the calling page.
 export function usePageHeader(title: string, action?: ReactNode) {
   const { setHeader } = useLayoutContext();
   useEffect(() => {

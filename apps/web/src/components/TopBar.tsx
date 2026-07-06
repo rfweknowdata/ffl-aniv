@@ -19,9 +19,6 @@ export function TopBar({ title, action, onOpenNav }: TopBarProps) {
         padding: '12px 14px',
         background: theme.color.surfaceWarm,
         borderBottom: `1px solid ${theme.color.border}`,
-        position: 'sticky',
-        top: 0,
-        zIndex: 30,
       }}
     >
       <button

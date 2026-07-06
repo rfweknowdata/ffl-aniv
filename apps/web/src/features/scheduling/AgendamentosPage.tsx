@@ -1,9 +1,10 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { MESES_ABBR, type AgendaItemDTO, type SendStatus } from '@ffl/shared';
 import { theme } from '../../theme';
 import { usePageHeader } from '../../components/LayoutContext';
 import { useToast } from '../../components/ToastContext';
 import { ChannelBadge } from '../../components/ChannelBadge';
+import { PdfPreviewModal } from '../../components/PdfPreviewModal';
 import { IconDownload } from '../../components/icons';
 import { useAgenda, useMarkSent, useResend, useRunNow } from './api';
 
@@ -54,6 +55,7 @@ export function AgendamentosPage() {
   const markSent = useMarkSent();
   const resend = useResend();
   const { showToast } = useToast();
+  const [pdfPreview, setPdfPreview] = useState<AgendaItemDTO | null>(null);
 
   const handleRunNow = () => {
     runNow.mutate(undefined, {
@@ -89,7 +91,7 @@ export function AgendamentosPage() {
   ).filter((g) => g.items.length > 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div>
       <header
         style={{
           padding: '26px 34px 18px',
@@ -129,7 +131,7 @@ export function AgendamentosPage() {
         </button>
       </header>
 
-      <div className="fx-scroll" style={{ flex: 1, overflow: 'auto', padding: '24px 34px 48px' }}>
+      <div style={{ padding: '24px 34px 48px' }}>
         {groups.length === 0 && (
           <div style={{ padding: 60, textAlign: 'center', color: theme.color.textFaint }}>
             Nenhum aniversário registado este ano.
@@ -211,9 +213,9 @@ export function AgendamentosPage() {
                       <ChannelBadge channel={item.channel} />
                       <span style={badgeStyle(info.bg, info.fg)}>{info.label}</span>
                       {item.channel === 'whatsapp' && (
-                        <a
-                          href={`/api/members/${item.memberId}/postcard.pdf`}
-                          download
+                        <button
+                          type="button"
+                          onClick={() => setPdfPreview(item)}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -228,12 +230,11 @@ export function AgendamentosPage() {
                             fontWeight: 600,
                             cursor: 'pointer',
                             whiteSpace: 'nowrap',
-                            textDecoration: 'none',
                           }}
                         >
                           <IconDownload size={14} />
                           PDF
-                        </a>
+                        </button>
                       )}
                       {canMarkSent && (
                         <button onClick={() => handleMarkSent(item.memberId)} disabled={markSent.isPending} style={actionBtnStyle}>
@@ -253,6 +254,13 @@ export function AgendamentosPage() {
           </section>
         ))}
       </div>
+
+      <PdfPreviewModal
+        open={!!pdfPreview}
+        url={pdfPreview ? `/api/members/${pdfPreview.memberId}/postcard.pdf` : ''}
+        title={pdfPreview ? `Postal — ${pdfPreview.profaneName}` : ''}
+        onClose={() => setPdfPreview(null)}
+      />
     </div>
   );
 }

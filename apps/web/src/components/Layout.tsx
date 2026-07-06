@@ -18,7 +18,7 @@ function LayoutInner({ children }: { children: ReactNode }) {
       style={{
         display: 'flex',
         width: '100%',
-        height: '100vh',
+        height: '100dvh',
         minHeight: 600,
         background: theme.color.appBg,
         color: theme.color.text,
@@ -43,12 +43,13 @@ function LayoutInner({ children }: { children: ReactNode }) {
       />
 
       <main
+        className="fx-scroll"
         style={{
           flex: 1,
           minWidth: 0,
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden',
+          overflow: 'auto',
         }}
       >
         {isMobile && <TopBar title={header.title} action={header.action} onOpenNav={openNav} />}
