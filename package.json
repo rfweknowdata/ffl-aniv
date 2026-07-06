@@ -1,0 +1,25 @@
+{
+  "name": "ffl-aniv",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @ffl/api --filter @ffl/web dev",
+    "dev:api": "pnpm --filter @ffl/api dev",
+    "dev:web": "pnpm --filter @ffl/web dev",
+    "build": "pnpm --filter @ffl/shared build && pnpm --filter @ffl/web build && pnpm --filter @ffl/api build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "migrate": "pnpm --filter @ffl/api exec prisma migrate dev",
+    "migrate:deploy": "pnpm --filter @ffl/api exec prisma migrate deploy",
+    "gen:vapid": "pnpm --filter @ffl/api exec node -e \"const wp=require('web-push');const k=wp.generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey);\"",
+    "gen:seed": "node apps/api/scripts/generate-seed.mjs"
+  },
+  "devDependencies": {
+    "csv-parse": "^7.0.1",
+    "sharp": "^0.35.3"
+  }
+}

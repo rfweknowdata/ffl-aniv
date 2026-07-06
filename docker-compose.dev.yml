@@ -1,0 +1,10 @@
+# Local development helper — adds Mailpit so outgoing e-mail is testable without a real SMTP
+# server. Point Settings at host "mailpit", port 1025, "Ligação segura" unchecked.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    restart: unless-stopped

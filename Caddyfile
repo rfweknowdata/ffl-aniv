@@ -1,0 +1,14 @@
+ffl.pt {
+    reverse_proxy app:3000
+
+    # Optional stopgap until real login exists (v1 ships with no auth — see PLAN.md §0).
+    # Uncomment to require a password at the edge. Generate the hash with:
+    #   docker run --rm caddy caddy hash-password --plaintext 'YOURPASS'
+    # basic_auth {
+    #     admin <BCRYPT_HASH>
+    # }
+}
+
+www.ffl.pt {
+    redir https://ffl.pt{uri}
+}

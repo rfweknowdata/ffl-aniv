@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Member {
+  id           String    @id @default(cuid())
+  internalId   String    @unique
+  profaneName  String
+  mysticName   String?
+  birthDate    String?
+  birthMonth   Int?
+  birthDay     Int?
+  nif          String?
+  phoneNumber  String?
+  email        String?
+  memberNumber String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sends        SendLog[]
+
+  @@index([birthMonth, birthDay])
+}
+
+model SendLog {
+  id        String    @id @default(cuid())
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId  String
+  year      Int
+  channel   String
+  status    String
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime  @default(now())
+
+  @@unique([memberId, year])
+  @@index([year, status])
+}
+
+model Settings {
+  id           Int      @id @default(1)
+  smtpHost     String?
+  smtpPort     Int?
+  smtpSecure   Boolean  @default(true)
+  smtpUser     String?
+  smtpPassword String?
+  fromName     String   @default("Fraternidade Fiat Lux")
+  fromEmail    String?
+  replyTo      String?
+  sendHour     Int      @default(8)
+  pushEnabled  Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+}

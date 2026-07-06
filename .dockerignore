@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+**/generated
+.git
+.env
+.env.*
+!.env.example
+/data
+*.db
+*.db-journal
+apps/api/seed-source
+.claude

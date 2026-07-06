@@ -8,6 +8,45 @@
 
 ---
 
+## CURRENT STATUS (read this first if picking up mid-build)
+
+**Phases 0–8 are done, working, and verified** (typecheck clean + exercised live in a real
+browser via claude-in-chrome — not just "written"). **Phase 9 (Dockerize + deploy) is in
+progress. Phase 10 (final verify) has not started.**
+
+What exists right now, concretely:
+- Full monorepo at the repo root: `apps/api` (Fastify), `apps/web` (React/Vite), `packages/shared`.
+- SQLite DB seeded with the real 140 members (`apps/api/prisma/dev.db` locally — gitignored;
+  `apps/api/prisma/seed.sql` is the committed, regenerable seed artifact, see §9).
+- Members CRUD, postcard PDF generation (visually verified against the church's reference PDF),
+  Agendamentos scheduling (idempotent daily job, mark-sent, resend), Settings (SMTP encrypted at
+  rest, test-email), push notifications (VAPID, subscribe/notify, graceful failure handling),
+  Dashboard (stat tiles + monthly chart + recent sends), PWA basics (manifest, generated icons,
+  minimal service worker, installable).
+- Local dev servers run via `pnpm --filter @ffl/api exec tsx watch src/server.ts` (port 3000) and
+  `pnpm --filter @ffl/web exec vite` (port 5173) — both were confirmed healthy as of this note.
+- Every "found during build" deviation from the original plan is called out inline below as an
+  **Implementation note** or **Decision** — read those; they document real gotchas (Prisma 7's
+  driver-adapter requirement, a Fastify empty-JSON-body bug, an accent-insensitive search bug,
+  the dropped Workbox/vite-plugin-pwa dependency, the skipped font self-hosting) that would
+  otherwise resurface if re-derived from scratch.
+
+**What's next (Phase 9, in progress):** the user just provisioned a fresh OVH VPS (Debian, Docker
+pre-installed) and pointed `ffl.pt` at it via DNS A record. An SSH MCP server (`ssh-mcp`) was
+added to the project's `.mcp.json` to reach it — **credentials live only in `.mcp.json`
+(gitignored), not repeated here.** That MCP server needs a session reload to become available
+(added mid-session; MCP servers load at session start). Once available: build the Docker
+artifacts below (Dockerfile, compose files, Caddyfile), then use SSH to actually deploy to the
+VPS and verify `https://ffl.pt` end to end — this plan was written to be tested for real, not
+just written and hoped about.
+
+**Task list note:** a task-tracking list (11 tasks, one per phase) existed in the conversation
+this was written from. If it's not visible after a session restart, treat the phase list in
+§15 below as the authoritative to-do — recreate tasks #1–8 as completed and #9–10 as the
+remaining work.
+
+---
+
 ## 0. What we are building (context)
 
 The **Fraternidade Fiat Lux** church sends a birthday postcard to each member on their birthday.
@@ -52,7 +91,8 @@ Today it's manual (edit a Word file → export PDF → email). We are automating
 - **Monorepo**: pnpm workspaces → `apps/api`, `apps/web`, `packages/shared`.
 - **Backend** (`apps/api`): Node 22, TypeScript, **Fastify 5**, **Prisma 6 + SQLite**,
   **node-cron**, **nodemailer**, **web-push**, **puppeteer**, **pino** (logs), **zod**,
-  **csv-parse** (import), **xlsx** (optional .xlsx import), **dayjs** (+ utc/timezone plugins).
+  **dayjs** (+ utc/timezone plugins). *No CSV/XLSX library ships in the app* — the 140-member
+  seed is generated once, offline, as plain SQL (see §9).
 - **Frontend** (`apps/web`): React 18, TypeScript, **Vite 5**, **react-router-dom 6**,
   **@tanstack/react-query 5**, **react-hook-form** + **zod** + **@hookform/resolvers**,
   **vite-plugin-pwa** (Workbox).
@@ -97,7 +137,11 @@ ffl-aniv/
    │  ├─ prisma/
    │  │  ├─ schema.prisma
    │  │  ├─ migrations/
-   │  │  └─ seed-data/FFL-SociosAtivos.csv   (copy of the church CSV)
+   │  │  └─ seed.sql                          (generated ONCE offline from the church CSV — §9; run on first boot if DB empty)
+   │  ├─ scripts/
+   │  │  └─ generate-seed.mjs                 (one-off, NOT deployed — (re)builds prisma/seed.sql)
+   │  ├─ seed-source/
+   │  │  └─ FFL-SociosAtivos.csv              (original church CSV — reference/audit only)
    │  ├─ assets/
    │  │  ├─ postal-template.html             (copy of the automation template)
    │  │  └─ fundo-postal-aniv.png            (copy of the background)
@@ -105,6 +149,7 @@ ffl-aniv/
    │     ├─ server.ts
    │     ├─ config.ts
    │     ├─ db.ts                            (Prisma client singleton)
+   │     ├─ bootSeed.ts                      (runs prisma/seed.sql via the sqlite3 CLI if Member table is empty)
    │     ├─ plugins/auth.ts
    │     ├─ lib/{channel.ts,dates.ts,crypto.ts,logger.ts,errors.ts}
    │     ├─ modules/
@@ -115,8 +160,7 @@ ffl-aniv/
    │     │  ├─ push/{routes.ts,service.ts}
    │     │  ├─ settings/{routes.ts,service.ts}
    │     │  └─ dashboard/{routes.ts,service.ts}
-   │     ├─ jobs/scheduler.ts
-   │     └─ seed.ts
+   │     └─ jobs/scheduler.ts
    └─ web/
       ├─ package.json
       ├─ vite.config.ts
@@ -179,6 +223,45 @@ should be unset so puppeteer uses its bundled Chromium.
 ---
 
 ## 4. Database — Prisma schema (`apps/api/prisma/schema.prisma`)
+
+> **Implementation note (found during Phase 0/1 build):** the installed Prisma major version was
+> **7.x**, which changed the connection wiring from what older Prisma docs/tutorials describe:
+> - `datasource db { url = env("DATABASE_URL") }` is **no longer valid** — schema.prisma's
+>   `datasource` block only has `provider = "sqlite"`, nothing else.
+> - `prisma generate` emits **readable TypeScript source** into `apps/api/src/generated/prisma/`
+>   (not a prebuilt package under `node_modules/@prisma/client`). Import `PrismaClient` from
+>   `./generated/prisma/client.js` (note the `.js` extension even though the source is `.ts` —
+>   NodeNext ESM convention), not from `@prisma/client`.
+> - The generated `PrismaClient` constructor now **requires a driver adapter** — there is no more
+>   implicit "reads `DATABASE_URL` and connects" behavior baked into the client itself. For SQLite
+>   we use `@prisma/adapter-better-sqlite3` (wraps the native `better-sqlite3` package):
+>   ```ts
+>   import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+>   import { PrismaClient } from './generated/prisma/client.js';
+>   const adapter = new PrismaBetterSqlite3({ url: sqlitePath }); // plain fs path, NOT "file:..."
+>   export const prisma = new PrismaClient({ adapter });
+>   ```
+>   **Important:** the adapter wants a **plain filesystem path** (`./prisma/dev.db`), not Prisma's
+>   traditional `file:./prisma/dev.db` URL — strip the `file:` prefix yourself (see `config.ts`).
+> - `prisma migrate dev` / `prisma migrate deploy` still work as before, but they now read the
+>   connection string from a root-level **`prisma.config.ts`** (auto-generated by `prisma init`):
+>   ```ts
+>   import "dotenv/config";
+>   import { defineConfig } from "prisma/config";
+>   export default defineConfig({
+>     schema: "prisma/schema.prisma",
+>     migrations: { path: "prisma/migrations" },
+>     datasource: { url: process.env["DATABASE_URL"] },
+>   });
+>   ```
+>   This file **does** use the `file:...` URL form (that's a separate, CLI-only code path from the
+>   runtime driver adapter above) — keep `DATABASE_URL` in `.env` as `file:...` everywhere; only
+>   the runtime adapter needs the prefix stripped, and `config.ts` does that conversion in one place.
+> - `apps/api/package.json`'s `build` script must still run `prisma generate` (it regenerates
+>   `src/generated/prisma/`, which is gitignored — treat it like `dist/`, not checked-in source).
+>
+> If a later Prisma version changes this again, trust what `prisma init`/`prisma generate` actually
+> produce over this note or over older Prisma tutorials.
 
 ```prisma
 generator client { provider = "prisma-client-js" }
@@ -341,8 +424,19 @@ export const theme = {
 
 Fonts: **self-host** Instrument Sans + Instrument Serif (download the woff2 files into
 `apps/web/public/fonts/` and declare `@font-face` in CSS). Do **not** load Google Fonts at
-runtime (offline support + GDPR). Focus style: `outline:none; border-color:#c69a2e;
-box-shadow:0 0 0 3px rgba(198,154,46,.16)`.
+runtime (offline support + GDPR).
+
+> **Decision (Phase 8):** downloading the Instrument Sans/Serif font files requires fetching
+> from an external source, which needs the user's explicit go-ahead (file download) — asking
+> would have interrupted the build for a purely aesthetic nicety. Shipped instead with the
+> fallback stack alone (`'Instrument Sans', system-ui, sans-serif` / `'Instrument Serif',
+> Georgia, serif`) — since the Instrument fonts are never actually fetched, every browser
+> renders the fallback (system-ui / Georgia), which already reads cleanly at every size used in
+> this UI. **If the user wants the exact Instrument look, self-hosting the woff2 files is a
+> quick follow-up** — the `@font-face` + `theme.ts` wiring is the only work; no component
+> changes needed since they already reference these font-family stacks by name.
+
+Focus style: `outline:none; border-color:#c69a2e; box-shadow:0 0 0 3px rgba(198,154,46,.16)`.
 
 **Portuguese labels** (UI text): Sócios, Agendamentos, Definições, Nome Profano, Nome Místico,
 Nascimento, NIF, Telemóvel, E-mail, Canal, Ações, Adicionar sócio, Guardar, Cancelar, Eliminar,
@@ -406,32 +500,92 @@ to `design-system/uploads/FFL/Postal Aniversario THARYH.pdf`.
 
 ---
 
-## 9. CSV importer (`apps/api/src/seed.ts` + members import endpoint)
+## 9. One-time seed data (generated once, offline — NOT an app feature)
 
-Source: `apps/api/prisma/seed-data/FFL-SociosAtivos.csv`. **No header row.** Fields may contain
-commas inside quotes — **you MUST use a real CSV parser** (`csv-parse`), never `split(',')`.
+**We are deliberately not building a CSV/XLSX importer into the app.** The 140 members are a
+one-time historical migration from the church's existing spreadsheet, not a recurring feed.
+Building a reusable import feature (upload endpoint, XLSX parsing, create/update matching, error
+UI) is real scope for something that likely never runs again — new members from now on are added
+one at a time through the Sócios CRUD screen (Phase 3). If the church ever needs another bulk
+import later, treat that as a future feature request, not v1.
 
-**Column mapping (index → field):**
+Instead: **generate the seed once, offline, as plain SQL**, commit it, and run it on first boot.
 
-| Idx | Raw example | Field | Cleaning rule |
-|---|---|---|---|
-| 0 | `1` | (seq) | Running counter → `internalId = 'FFL-' + String(n).padStart(3,'0')`. |
-| 1 | `"194,416,232"` | `nif` | Strip non-digits → `194416232`. If not exactly 9 digits (e.g. `???`, `????`, empty) → `null`. |
-| 2 | `ABRAÃO BARROS TAVARES` | `profaneName` | `trim()` then **UPPERCASE**. Required — skip row if empty. |
-| 3 | `"966,750,406  "` | `phoneNumber` | Strip non-digits → `966750406`. If 9 digits → format `+351 966 750 406`. Junk (`???`)/empty → `null`. |
-| 4 | `abraaott@gmail.com` / `Não tem ` | `email` | `trim()`. If empty **or** equals `"não tem"` (case-insensitive, ignoring surrounding spaces) → `null`. |
-| 5 | `23-09-1968` / ` 29-04-1959` | `birthDate` | `trim()`, parse `DD-MM-YYYY` → ISO `YYYY-MM-DD`. Empty/invalid → `null`. Set `birthMonth`/`birthDay` when present. |
-| 6 | `BAHALIHÁ` / `` | `mysticName` | `trim()`. Empty → `null`. |
-| 7 | `2969` / `Sócio Recente` / `` | `memberNumber` | `trim()`. Empty → `null`. Store the raw string. |
+### 9.1 Generate `apps/api/prisma/seed.sql`
 
-Notes:
-- The file has rows numbered up to 140 but ~139 lines — just import every valid line and use a
-  running counter for `internalId`. Don't rely on column 0 being contiguous.
-- After cleaning, `channelOf` decides the channel (don't store it — derive it).
-- Seed only runs when `SEED_ON_EMPTY=true` **and** the `Member` table is empty.
-- Also expose `POST /api/members/import` (multipart CSV, optionally XLSX via `xlsx`) that runs the
-  same cleaner — used later to refresh the list. Return a summary `{ created, updated, skipped }`.
-  Match existing members by `nif` (when present) else by `profaneName`.
+Write `apps/api/scripts/generate-seed.mjs` — checked into the repo for reproducibility, but
+**never imported by the running app and never copied into the Docker image**. You run it once
+locally (`node apps/api/scripts/generate-seed.mjs`) and commit the SQL file it produces. Re-run it
+by hand later only if the source CSV or the Member schema changes before launch.
+
+The script:
+
+1. Reads `apps/api/seed-source/FFL-SociosAtivos.csv` (copy the church CSV there — no header row).
+2. Parses it with a **real CSV parser** (`csv-parse`) — fields contain commas inside quotes, so
+   `split(',')` will silently corrupt rows. Add `csv-parse` as a dependency **only** for this
+   script (repo-root devDependency, or install it ad hoc) — it must **not** appear in
+   `apps/api/package.json`, so it never ends up in the production image. Do **not** hand-type the
+   140 rows — script the cleaning so NIFs/phones/dates come out exact.
+3. Cleans each row with **exactly** these rules (column mapping, index → field):
+
+   | Idx | Raw example | Field | Cleaning rule |
+   |---|---|---|---|
+   | 0 | `1` | (seq) | Running counter → `internalId = 'FFL-' + String(n).padStart(3,'0')`. |
+   | 1 | `"194,416,232"` | `nif` | Strip non-digits → `194416232`. If not exactly 9 digits (e.g. `???`, `????`, empty) → `NULL`. |
+   | 2 | `ABRAÃO BARROS TAVARES` | `profaneName` | `trim()` then **UPPERCASE**. Required — skip the row entirely if empty. |
+   | 3 | `"966,750,406  "` | `phoneNumber` | Strip non-digits → `966750406`. If 9 digits → format `+351 966 750 406`. Junk (`???`)/empty → `NULL`. |
+   | 4 | `abraaott@gmail.com` / `Não tem ` | `email` | `trim()`. If empty **or** equals `"não tem"` (case-insensitive, ignoring surrounding spaces) → `NULL`. |
+   | 5 | `23-09-1968` / ` 29-04-1959` | `birthDate` | `trim()`, parse `DD-MM-YYYY` → ISO `YYYY-MM-DD`. Empty/invalid → `NULL` (and `birthMonth`/`birthDay` → `NULL` too). |
+   | 6 | `BAHALIHÁ` / `` | `mysticName` | `trim()`. Empty → `NULL`. |
+   | 7 | `2969` / `Sócio Recente` / `` | `memberNumber` | `trim()`. Empty → `NULL`. Store the raw string. |
+
+   The file has rows numbered up to 140 but ~139 lines — import every valid line and use your own
+   running counter for `internalId`; don't rely on column 0 being contiguous.
+
+4. For each cleaned row, emits one line:
+   ```sql
+   INSERT INTO Member (id, internalId, profaneName, mysticName, birthDate, birthMonth, birthDay, nif, phoneNumber, email, memberNumber, notes, createdAt, updatedAt)
+   VALUES ('FFL-001','FFL-001','ABRAÃO BARROS TAVARES',NULL,'1968-09-23',9,23,'194416232','+351 966 750 406','abraaott@gmail.com','2969',NULL,'2026-01-01T00:00:00.000Z','2026-01-01T00:00:00.000Z');
+   ```
+   Details that matter:
+   - **`id` = the same value as `internalId`** (e.g. `'FFL-001'`). The schema's `id` is just a
+     unique string primary key, not required to be a cuid — reusing `internalId` avoids pulling a
+     cuid library into a throwaway script. Members created later via the app still get real
+     Prisma-generated cuids for `id`; both schemes coexist fine since both are just unique strings.
+   - **`createdAt`/`updatedAt`** must be set explicitly (e.g. the generation date, in ISO
+     datetime). Raw SQL bypasses Prisma Client's `@default(now())`/`@updatedAt` behavior — those
+     are applied by the client library, not something you can rely on for a raw insert.
+   - Escape single quotes in text by doubling them (`O'Brien` → `O''Brien`) so the SQL stays valid.
+   - After cleaning, `channelOf` (shared package) derives the channel — don't store it.
+5. Wraps everything in one transaction and writes `apps/api/prisma/seed.sql`:
+   ```sql
+   BEGIN TRANSACTION;
+   INSERT INTO Member (...) VALUES (...);
+   -- … one line per member …
+   COMMIT;
+   ```
+
+If the Prisma schema's columns change before launch, regenerate this file — don't hand-edit it.
+
+### 9.2 Running the seed on first boot
+
+> **Implementation note (found during Phase 1 build):** don't shell out to a `sqlite3` CLI
+> binary — it isn't installed on most dev machines (Windows in particular) and would need
+> `apt-get install sqlite3` in the Docker image for no real benefit. `better-sqlite3` is
+> **already a dependency** (it's what `@prisma/adapter-better-sqlite3` wraps — see §4's Prisma
+> 7 note) and its `Database#exec()` method runs a whole multi-statement SQL script (including
+> the `BEGIN TRANSACTION;`/`COMMIT;` wrapper) directly, in-process, with no subprocess and no
+> PATH dependency. Add `better-sqlite3` as a **direct** dependency of `@ffl/api` (not just
+> transitive) and use it straight from Node — identical code path on Windows dev and Linux prod.
+
+No import endpoint, no CSV/XLSX dependency at runtime. Boot sequence (see §14):
+
+1. `prisma migrate deploy`.
+2. `bootSeed.ts` (called from `server.ts` before `app.listen`): if `prisma.member.count()` is
+   `0` **and** `SEED_ON_EMPTY=true`, read `prisma/seed.sql` and run it via
+   `new Database(sqlitePath).exec(sql)`. Safe to call on every boot — idempotent, a no-op once
+   real data exists.
+3. Start the Fastify server.
 
 ---
 
@@ -449,12 +603,17 @@ schemas. Return JSON. Use pino for logs.
   - `GET  /api/members?query=` → list (search across profaneName, mysticName, email, nif,
     internalId, phoneNumber — same fields as the prototype's filter). Each item includes derived
     `channel`.
+    > **Implementation note (found during Phase 3 build):** don't implement this with Prisma's
+    > `contains` (SQLite `LIKE`) — it's only case-insensitive for ASCII, so a lowercase, accented
+    > query like `"verificação"` won't match a stored `"VERIFICAÇÃO"`. That's a real problem for a
+    > dataset that's entirely Portuguese names. With only ~140 members, fetch everything and filter
+    > in JS instead, normalizing both sides with `.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()`
+    > (see `apps/api/src/lib/search.ts`) — correct and plenty fast at this scale.
   - `POST /api/members` → create (auto-generate `internalId` if blank via `FFL-###` next number).
   - `GET  /api/members/:id`
   - `PUT  /api/members/:id`
   - `DELETE /api/members/:id`
   - `GET  /api/members/:id/postcard.pdf` → streams the rendered PDF (for the per-row download).
-  - `POST /api/members/import` → bulk CSV/XLSX import.
 - **Sends / scheduling**
   - `GET  /api/sends/agenda` → this year's birthdays grouped `{ hoje[], proximos[], enviados[] }`,
     each item enriched with member, channel, status (from `SendLog`), and day/month tile fields.
@@ -558,6 +717,15 @@ Use TanStack Query for all data; react-hook-form + zod for the member and settin
 **API client** (`src/api/client.ts`): thin `fetch` wrapper to `/api`, JSON in/out, throws on
 non-2xx. `hooks.ts`: query/mutation hooks per resource with cache invalidation.
 
+> **Implementation note (found during Phase 4 build):** for POST/PUT calls with **no** body
+> (e.g. `POST /sends/run`, mark-sent, resend), do **not** unconditionally set
+> `Content-Type: application/json` — Fastify's default JSON body parser throws
+> `FST_ERR_CTP_EMPTY_JSON_BODY` ("Body cannot be empty when content-type is set to
+> 'application/json'") if that header is present with an empty body, and it surfaces as a
+> confusing 500 unless the server's error handler also respects Fastify-native errors' own
+> `statusCode` (see `server.ts`'s `setErrorHandler` — don't blanket-500 everything that isn't
+> your own `AppError`). Only attach the JSON content-type header when a body is actually sent.
+
 ---
 
 ## 12. Dashboard aggregates (`GET /api/dashboard`)
@@ -589,9 +757,16 @@ Return everything the first page needs in one call:
   `start_url: "/"`, icons **192, 512, and a maskable 512**.
 - **iOS meta** in `index.html`: `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`,
   `apple-touch-icon`.
-- **Service worker** via `vite-plugin-pwa` (Workbox): precache the app shell; runtime
-  **network-first** for `/api`. Add a `push` event handler that calls `showNotification(title,
-  { body, icon })`, and a `notificationclick` handler that focuses/opens the app.
+- **Service worker** (`apps/web/public/sw.js`, hand-written plain JS, registered unconditionally
+  from `main.tsx` on every load — not gated behind the push opt-in):
+  > **Implementation note (found during Phase 8 build):** the plan originally called for
+  > `vite-plugin-pwa` + Workbox precaching. Dropped in favor of a small hand-written SW instead —
+  > this app is genuinely **online-only** (no email/DB access without a connection regardless of
+  > what's cached), so an offline app-shell adds real config complexity (asset manifests, cache
+  > versioning/invalidation) for a use case that doesn't exist here. A plain SW with `install`
+  > (`skipWaiting`) + `activate` (`clients.claim()`) is enough to make the app installable; it
+  > also owns the `push`/`notificationclick` handlers (`showNotification`, focus-or-open-window
+  > on click). If a future feature genuinely needs offline support, reach for Workbox then.
 - **Subscription flow** (`pwa/push.ts`, triggered by the Settings button):
   1. `Notification.requestPermission()`.
   2. `registration.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:
@@ -639,7 +814,10 @@ COPY --from=build /app/apps/api/prisma ./prisma
 COPY --from=build /app/apps/api/assets ./assets
 COPY --from=build /app/apps/web/dist ./public
 EXPOSE 3000
-# server.ts on boot: prisma migrate deploy -> seed if empty -> serve ./public + /api -> start cron
+# server.ts on boot: prisma migrate deploy (run separately, see entrypoint) -> bootSeed
+# (better-sqlite3 runs prisma/seed.sql in-process if the Member table is empty) -> serve
+# ./public + /api -> start cron. seed.sql is generated by apps/api/scripts/generate-seed.mjs
+# (§9) and committed to the repo — nothing CSV-related runs at container boot.
 ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["node","dist/server.js"]
 ```
@@ -694,7 +872,9 @@ testable locally without a real SMTP server (point Settings at host `mailpit`, p
 off).
 
 **Root `package.json` scripts:** `dev` (run api + web with tsx/vite concurrently),
-`build`, `gen:vapid` (`node -e` using `web-push`), `migrate`, `seed`.
+`build`, `gen:vapid` (`node -e` using `web-push`), `migrate`, `gen:seed` (runs
+`apps/api/scripts/generate-seed.mjs` to (re)build `prisma/seed.sql` from the CSV — a dev-time
+convenience, not something the deployed app ever runs).
 
 **Deploy to OVH (put in README):**
 1. Point DNS `ffl.pt` (A/AAAA) at the VPS public IP; open ports 80 and 443 in the OVH firewall.
@@ -713,14 +893,16 @@ off).
 
 - **Phase 0 — Scaffold.** Monorepo, pnpm workspaces, TS/eslint/prettier, root scripts, `.env.example`.
   ✅ `pnpm install` clean; `pnpm dev` starts empty api + web; `/api/health` returns `{ok:true}`.
-- **Phase 1 — DB + seed.** Prisma schema + `init` migration; CSV cleaner; copy CSV into seed-data.
+- **Phase 1 — DB + seed.** Prisma schema + `init` migration; copy the CSV into `seed-source/`;
+  write + run `generate-seed.mjs` once to produce `prisma/seed.sql`; `bootSeed.ts` runs it on
+  first boot via the `sqlite3` CLI when the `Member` table is empty.
   ✅ Fresh boot imports 140 members; spot-check: NIF `194416232`, phone `+351 966 750 406`,
-  ISABEL's birthDate `1968-06-18`, `"Não tem"` → null email, `???` → null. Channels derive correctly.
+  ISABEL's birthDate `1968-06-18`, `"Não tem"` → null email, `???` → null. Channels derive
+  correctly. Restarting the container does not re-run the seed or duplicate rows.
 - **Phase 2 — Postcard PDF.** Copy template + PNG into `assets`; base64 inline; date formatter;
   Puppeteer render; `GET /api/members/:id/postcard.pdf`.
   ✅ THARYH's PDF visually matches `Postal Aniversario THARYH.pdf` (names, positions, colors, date).
-- **Phase 3 — Members.** CRUD + search API; Sócios page (table/cards, modal, delete, PDF button);
-  import endpoint.
+- **Phase 3 — Members.** CRUD + search API; Sócios page (table/cards, modal, delete, PDF button).
   ✅ Add/edit/delete/search work on desktop and mobile widths; per-row PDF downloads.
 - **Phase 4 — Scheduling.** SendLog; `runDailyJob` (idempotent); scheduler; `agenda` endpoint;
   Agendamentos page; "Enviar agora"; mark-sent; resend.
@@ -758,8 +940,11 @@ Track these with the task tools; mark each phase in-progress/completed as you go
 
 ## 17. Things Sonnet must not skip or guess
 
-1. Use a **real CSV parser** — the data has commas inside quoted fields.
-2. **Idempotency**: `SendLog @@unique([memberId, year])` — check before sending.
+1. The **seed-generation script** (`generate-seed.mjs`, run once, offline) must use a real CSV
+   parser — the data has commas inside quoted fields. Never hand-transcribe the 140 rows, and
+   never ship a CSV/XLSX parser inside the deployed app — there is no import feature in v1.
+2. **Idempotency**: `SendLog @@unique([memberId, year])` — check before sending. Same principle
+   for the seed: `bootSeed.ts` only runs `seed.sql` when the `Member` table is empty.
 3. **Timezone Europe/Lisbon** for the cron and all "today" comparisons.
 4. **Encrypt** the SMTP password; **never** return it from the API.
 5. Postcard: **inline the PNG as base64**, `printBackground: true`, day **not** zero-padded,

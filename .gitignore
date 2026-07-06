@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+apps/api/src/generated/
+.env
+.env.local
+*.db
+*.db-journal
+/data/
+.DS_Store
+*.log
+apps/web/dev-dist/
+.turbo/
+.mcp.json
