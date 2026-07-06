@@ -62,7 +62,9 @@ export async function renderPostcardPdf(member: PostcardMemberInput, year?: numb
   const html = buildPostcardHtml(member, year);
   const browser = await puppeteer.launch({
     executablePath: config.puppeteerExecutablePath,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // --disable-dev-shm-usage: Docker's default /dev/shm is 64MB, too small for Chromium and
+    // a well-known cause of launch failures in containers — use /tmp for shared memory instead.
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   });
   try {
     const page = await browser.newPage();

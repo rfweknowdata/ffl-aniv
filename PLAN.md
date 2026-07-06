@@ -483,6 +483,13 @@ The postcard is A4, filled from a template with 3 tokens, rendered to PDF by Pup
 **Make the HTML self-contained**: read `fundo-postal-aniv.png`, base64-encode it, and inject it as
 `src="data:image/png;base64,…"` replacing the `../assets/...` path. This makes the page portable.
 
+> **Implementation note (found during the real VPS deploy, Phase 9):** Chromium launched fine
+> locally but failed in the Docker container with a wall of `dbus`-connection errors and
+> `Failed to launch the browser process: Code: null` — the actual cause, hiding under that
+> noise, is Docker's default `/dev/shm` (64 MB) being too small for Chromium, a very well-known
+> container gotcha. Fixed by adding `--disable-dev-shm-usage` to the launch args (makes Chromium
+> use `/tmp` instead of `/dev/shm`) — no docker-compose `shm_size:` bump needed.
+
 **Render function**:
 ```ts
 // returns a PDF Buffer
@@ -490,10 +497,10 @@ async function renderPostcardPdf(member): Promise<Buffer> {
   const html = fillTemplate(member);   // token replace + base64 bg
   const browser = await puppeteer.launch({
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   });
   const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
+  await page.setContent(html, { waitUntil: 'load' }); // setContent only supports load/domcontentloaded, not networkidle0
   const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
   await browser.close();
   return pdf;
