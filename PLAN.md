@@ -259,6 +259,13 @@ should be unset so puppeteer uses its bundled Chromium.
 >   the runtime adapter needs the prefix stripped, and `config.ts` does that conversion in one place.
 > - `apps/api/package.json`'s `build` script must still run `prisma generate` (it regenerates
 >   `src/generated/prisma/`, which is gitignored — treat it like `dist/`, not checked-in source).
+>   **Order matters: `prisma generate` must run *before* `tsc`**, not after — `tsc` needs those
+>   generated files to already exist to resolve imports like `./generated/prisma/client.js`.
+>   This bit during the Docker deploy (Phase 9): it worked locally by accident because the
+>   generated client was already sitting on disk from earlier manual `prisma generate` runs, but
+>   failed on a genuinely fresh checkout (no prior generate) with a wall of `Cannot find module
+>   './generated/prisma/client.js'` plus a cascade of "implicit any" errors on anything whose
+>   type depended on it. `build`/`dev`/`typecheck` all now run `prisma generate` first.
 >
 > If a later Prisma version changes this again, trust what `prisma init`/`prisma generate` actually
 > produce over this note or over older Prisma tutorials.
