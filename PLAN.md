@@ -10,39 +10,42 @@
 
 ## CURRENT STATUS (read this first if picking up mid-build)
 
-**Phases 0–8 are done, working, and verified** (typecheck clean + exercised live in a real
-browser via claude-in-chrome — not just "written"). **Phase 9 (Dockerize + deploy) is in
-progress. Phase 10 (final verify) has not started.**
+**Phases 0–9 are done, working, and verified — including a real production deployment.**
+**https://ffl.pt is live right now**, running on the user's OVH VPS, seeded with the real 140
+members, HTTPS auto-provisioned via Caddy/Let's Encrypt. **Phase 10 (final end-to-end verify)
+is the only remaining work.**
 
 What exists right now, concretely:
 - Full monorepo at the repo root: `apps/api` (Fastify), `apps/web` (React/Vite), `packages/shared`.
-- SQLite DB seeded with the real 140 members (`apps/api/prisma/dev.db` locally — gitignored;
-  `apps/api/prisma/seed.sql` is the committed, regenerable seed artifact, see §9).
-- Members CRUD, postcard PDF generation (visually verified against the church's reference PDF),
-  Agendamentos scheduling (idempotent daily job, mark-sent, resend), Settings (SMTP encrypted at
-  rest, test-email), push notifications (VAPID, subscribe/notify, graceful failure handling),
-  Dashboard (stat tiles + monthly chart + recent sends), PWA basics (manifest, generated icons,
-  minimal service worker, installable).
-- Local dev servers run via `pnpm --filter @ffl/api exec tsx watch src/server.ts` (port 3000) and
-  `pnpm --filter @ffl/web exec vite` (port 5173) — both were confirmed healthy as of this note.
+- Members CRUD, postcard PDF generation (visually verified against the church's reference PDF —
+  and again against a live-generated PDF pulled from production), Agendamentos scheduling
+  (idempotent daily job, mark-sent, resend), Settings (SMTP encrypted at rest, test-email), push
+  notifications (VAPID, subscribe/notify, graceful failure handling), Dashboard (stat tiles +
+  monthly chart + recent sends), PWA basics (manifest, generated icons, minimal service worker,
+  installable).
+- **Deployed**: `git clone`d onto the VPS (`~/ffl-aniv`, remote `https://github.com/rfweknowdata/
+  ffl-aniv.git`, branch `main`), `docker compose up -d --build`, verified via SSH + a real
+  browser hitting `https://ffl.pt` — Dashboard/Sócios/Agendamentos/Definições all confirmed
+  rendering real data over HTTPS, and the postcard PDF endpoint confirmed generating a correct
+  PDF in the actual production container (see the Puppeteer/Chromium note below — this took
+  real debugging, don't skip reading it if Docker builds change).
 - Every "found during build" deviation from the original plan is called out inline below as an
   **Implementation note** or **Decision** — read those; they document real gotchas (Prisma 7's
   driver-adapter requirement, a Fastify empty-JSON-body bug, an accent-insensitive search bug,
-  the dropped Workbox/vite-plugin-pwa dependency, the skipped font self-hosting) that would
-  otherwise resurface if re-derived from scratch.
+  the dropped Workbox/vite-plugin-pwa dependency, the skipped font self-hosting, a build-script
+  ordering bug, and a Puppeteer/Chromium container crash) that would otherwise resurface if
+  re-derived from scratch.
 
-**What's next (Phase 9, in progress):** the user just provisioned a fresh OVH VPS (Debian, Docker
-pre-installed) and pointed `ffl.pt` at it via DNS A record. An SSH MCP server (`ssh-mcp`) was
-added to the project's `.mcp.json` to reach it — **credentials live only in `.mcp.json`
-(gitignored), not repeated here.** That MCP server needs a session reload to become available
-(added mid-session; MCP servers load at session start). Once available: build the Docker
-artifacts below (Dockerfile, compose files, Caddyfile), then use SSH to actually deploy to the
-VPS and verify `https://ffl.pt` end to end — this plan was written to be tested for real, not
-just written and hoped about.
+**What's next (Phase 10):** a final deliberate end-to-end pass per §16's checklist — most of it
+has already happened organically while deploying (seed correctness, postcard fidelity, HTTPS,
+responsive layout all confirmed live), but do a last focused pass: a real SMTP send (the user
+needs to supply real credentials, or verify against Mailpit), the daily job firing at the
+scheduled hour un-forced, and the iPhone install + push notification flow on an actual device
+(this cannot be verified via automation — needs the user's phone).
 
 **Task list note:** a task-tracking list (11 tasks, one per phase) existed in the conversation
 this was written from. If it's not visible after a session restart, treat the phase list in
-§15 below as the authoritative to-do — recreate tasks #1–8 as completed and #9–10 as the
+§15 below as the authoritative to-do — recreate tasks #1–9 as completed and #10 as the
 remaining work.
 
 ---
