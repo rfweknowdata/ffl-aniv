@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { MemberDTO, MemberInput } from '@ffl/shared';
 import { formatDisplayDate } from '@ffl/shared';
 import { theme } from '../../theme';
@@ -7,6 +7,7 @@ import { usePageHeader } from '../../components/LayoutContext';
 import { useToast } from '../../components/ToastContext';
 import { ChannelBadge } from '../../components/ChannelBadge';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { PdfPreviewModal } from '../../components/PdfPreviewModal';
 import { IconDownload, IconEdit, IconPlus, IconSearch, IconTrash } from '../../components/icons';
 import { useCreateMember, useDeleteMember, useMembers, useMembersCount, useUpdateMember } from './api';
 import { MemberModal } from './MemberModal';
@@ -44,6 +45,7 @@ export function MembersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<MemberDTO | null>(null);
   const [pendingDelete, setPendingDelete] = useState<MemberDTO | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<MemberDTO | null>(null);
 
   const isMobile = useIsMobile();
   const { showToast } = useToast();
@@ -62,30 +64,36 @@ export function MembersPage() {
     setModalOpen(true);
   };
 
-  usePageHeader(
-    'Sócios',
-    isMobile ? (
-      <button
-        onClick={openAdd}
-        title="Adicionar sócio"
-        style={{
-          width: 40,
-          height: 40,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: 'none',
-          borderRadius: 10,
-          background: theme.color.gold,
-          color: '#fff',
-          cursor: 'pointer',
-          boxShadow: '0 1px 2px rgba(166,124,0,.25)',
-        }}
-      >
-        <IconPlus />
-      </button>
-    ) : undefined,
+  // Memoized: usePageHeader's effect depends on this reference, so an unmemoized element here
+  // (a fresh object every render) fires that effect every render and loops.
+  const headerAction = useMemo(
+    () =>
+      isMobile ? (
+        <button
+          onClick={openAdd}
+          title="Adicionar sócio"
+          style={{
+            width: 40,
+            height: 40,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: 'none',
+            borderRadius: 10,
+            background: theme.color.gold,
+            color: '#fff',
+            cursor: 'pointer',
+            boxShadow: '0 1px 2px rgba(166,124,0,.25)',
+          }}
+        >
+          <IconPlus />
+        </button>
+      ) : undefined,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isMobile],
   );
+
+  usePageHeader('Sócios', headerAction);
 
   const handleSave = (input: MemberInput) => {
     if (editingMember) {
@@ -128,7 +136,7 @@ export function MembersPage() {
         : `${members.length} de ${totalCount} sócios`;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div>
       <header
         style={{
           padding: isMobile ? '16px 16px 12px' : '26px 34px 18px',
@@ -212,7 +220,7 @@ export function MembersPage() {
       </header>
 
       {!isMobile && (
-        <div className="fx-scroll" style={{ flex: 1, overflow: 'auto', padding: '0 34px 40px' }}>
+        <div style={{ padding: '0 34px 40px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 940 }}>
             <thead>
               <tr
@@ -280,11 +288,11 @@ export function MembersPage() {
                   </td>
                   <td style={{ padding: '13px 12px' }}>
                     <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                      <a
-                        href={`/api/members/${m.id}/postcard.pdf`}
-                        download
+                      <button
+                        type="button"
+                        onClick={() => setPdfPreview(m)}
                         className="fx-ico"
-                        title="Descarregar PDF do postal"
+                        title="Ver postal"
                         style={
                           m.channel === 'whatsapp'
                             ? { ...iconBtnStyle, border: '1px solid #cfe6d8', background: '#f0f8f3', color: theme.color.success }
@@ -292,7 +300,7 @@ export function MembersPage() {
                         }
                       >
                         <IconDownload />
-                      </a>
+                      </button>
                       <button onClick={() => openEdit(m)} className="fx-ico" title="Editar" style={iconBtnStyle}>
                         <IconEdit />
                       </button>
@@ -319,7 +327,7 @@ export function MembersPage() {
       )}
 
       {isMobile && (
-        <div className="fx-scroll" style={{ flex: 1, overflow: 'auto', padding: '14px 14px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ padding: '14px 14px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {members.map((m) => (
             <div
               key={m.id}
@@ -387,9 +395,9 @@ export function MembersPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                <a
-                  href={`/api/members/${m.id}/postcard.pdf`}
-                  download
+                <button
+                  type="button"
+                  onClick={() => setPdfPreview(m)}
                   style={{
                     flex: 1,
                     display: 'flex',
@@ -405,12 +413,11 @@ export function MembersPage() {
                     fontWeight: 600,
                     fontSize: 13,
                     cursor: 'pointer',
-                    textDecoration: 'none',
                   }}
                 >
                   <IconDownload />
                   PDF
-                </a>
+                </button>
                 <button
                   onClick={() => openEdit(m)}
                   title="Editar"
@@ -481,6 +488,13 @@ export function MembersPage() {
         confirmLabel="Eliminar"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+
+      <PdfPreviewModal
+        open={!!pdfPreview}
+        url={pdfPreview ? `/api/members/${pdfPreview.id}/postcard.pdf` : ''}
+        title={pdfPreview ? `Postal — ${pdfPreview.profaneName}` : ''}
+        onClose={() => setPdfPreview(null)}
       />
     </div>
   );

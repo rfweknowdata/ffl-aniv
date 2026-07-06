@@ -118,6 +118,16 @@ export function IconSearch({ size = 16, ...props }: IconProps) {
   );
 }
 
+export function IconShare({ size = 16, ...props }: IconProps) {
+  return (
+    <svg {...base(size, 1.8, props)}>
+      <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
+      <path d="M16 6l-4-4-4 4" />
+      <path d="M12 2v13" />
+    </svg>
+  );
+}
+
 export function IconCheck({ size = 16, ...props }: IconProps) {
   return (
     <svg {...base(size, 2.2, props)} stroke="#1f7a52">
