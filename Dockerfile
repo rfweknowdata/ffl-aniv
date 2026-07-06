@@ -4,6 +4,10 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 RUN corepack enable
+# Skip Puppeteer's own Chromium download during the build — the runtime stage uses the
+# distro Chromium (PUPPETEER_EXECUTABLE_PATH below) so a bundled one would be dead weight
+# anyway, and this slim build image has no unzip to extract the downloaded archive.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/shared/package.json packages/shared/
